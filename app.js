@@ -65,74 +65,6 @@ connectDb();
 // Routes
 app.use("/api/v1/", router);
 
-// app.get(
-//   "/api/v1/",
-//   asyncHandler(async (req, res, next) => {
-//     try {
-//       console.log(userId);
-//       // user.join(userId);
-//       const distFolderPath = path.join(__dirname, "output");
-//       const distFolderContents = fs.readdirSync(distFolderPath, {
-//         recursive: true,
-//       });
-
-//       for (const file of distFolderContents) {
-//         const filePath = path.join(distFolderPath, file);
-
-//         if (fs.lstatSync(filePath).isDirectory()) {
-//           const packageJsonPath = path.join(filePath, "package.json");
-
-//           if (fs.existsSync(packageJsonPath)) {
-//             const packageJsonContent = fs.readFileSync(
-//               packageJsonPath,
-//               "utf-8"
-//             );
-//             const packageJson = JSON.parse(packageJsonContent);
-
-//             // Check if "start" or "dev" script exists
-//             if (
-//               packageJson.scripts &&
-//               (packageJson.scripts.start || packageJson.scripts.dev)
-//             ) {
-//               // Add 'cd' to change the working directory
-//               if (packageJson.scripts.start || packageJson.scripts.dev) {
-//                 console.log(
-//                   `Start Script: ${
-//                     packageJson.scripts.start || packageJson.scripts.dev
-//                   }`
-//                 );
-//                 const bashCommand = `cd ${filePath} && git pull && npm i && ${
-//                   packageJson.scripts.start || packageJson.scripts.dev
-//                 }`;
-//                 const childProcess = spawn(bashCommand, {
-//                   cwd: __dirname,
-//                   shell: true,
-//                 });
-
-//                 childProcess.stdout.on("data", (data) => {
-//                   console.log(data.toString());
-//                   io?.to(userId)?.emit("output", data.toString());
-//                 });
-
-//                 childProcess.stderr.on("data", (data) => {
-//                   console.error(data.toString());
-//                   io?.to(userId)?.emit("output", data.toString());
-//                 });
-//               }
-//             }
-//           }
-//         }
-//       }
-
-//       next();
-//       return res.status(400).json({ error: "Git URL is required" });
-//     } catch (error) {
-//       console.error("Error in script execution:", error.message);
-//       return res.status(500).json({ error: "Script execution failed" });
-//     }
-//   })
-// );
-
 app.get(
   "/api/v1/",
   asyncHandler(async (req, res, next) => {
@@ -169,6 +101,8 @@ app.get(
                 const bashCommand = `cd ${filePath} && git pull && npm i && ${
                   packageJson.scripts.start || packageJson.scripts.dev
                 }`;
+                console.log("🚀 ~ asyncHandler ~ filePath:", filePath);
+                // const bashCommand = `cd ${filePath} && git pull && npm i && npm start`;
                 const childProcess = spawn(bashCommand, {
                   cwd: __dirname,
                   shell: true,
