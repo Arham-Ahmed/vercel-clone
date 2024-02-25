@@ -14,6 +14,7 @@ const { GridFSBucket } = require("mongodb");
 const asyncHandler = require("./src/utils/asyncHandler");
 // const { Server } = require("socket.io");
 const spawn = require("cross-spawn");
+const httpProxy = require("http-proxy");
 // const { createServer } = require("http");
 
 // All initialization here
@@ -24,24 +25,50 @@ const http = require("http");
 const socketIo = require("socket.io");
 // All variable declaration here
 const port = Number(process.env.PORT || 8000);
-
+const proxy = httpProxy.createProxy();
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 const nodemon = require("nodemon");
 let user;
+let userId;
 io.on("connection", (socket) => {
   console.log("A user connected", socket?.id);
   // Send the output to the connected client
   user = socket;
-  // user.emit("output", array);
+  socket.join(socket.id);
+  userId = socket.id;
+  socket.on("join", function (room) {
+    console.log("🚀 ~ room:", room);
+    socket.join(room);
+  });
+  // user?.to(userId)?.emit("output", array);
 
   // socket.on("project", () => {});
   socket.on("disconnect", () => {
     console.log("User disconnected");
   });
 });
+
+// app.use((req, res) => {
+//   const hostname = req.hostname;
+//   const subdomain = hostname.split(".")[0];
+
+//   const BASE_PATH = "http://localhost:8000/api/v1/";
+//   // Custom Domain - DB Query
+
+//   const resolvesTo = `${BASE_PATH}/${subdomain}`;
+
+//   return proxy.web(req, res, { target: resolvesTo, changeOrigin: true });
+// });
+
+// proxy.on("proxyReq", (proxyReq, req, res) => {
+//   const url = req.url;
+//   if (url === "http://localhost:3000/") proxyReq.path += "index.html";
+//   // proxy.web(req, res, { target: "http://localhost:3000/" });
+// });
+
 server.listen(8000, () => {
   console.log(`Server running on http://localhost:${8000}`);
 });
@@ -111,12 +138,12 @@ app.use("/api/v1/", router);
 //       // );
 //       // p.stdout.on("data", function (data) {
 //       //   console.log(data.toString());
-//       //   user.emit("output", data?.toString());
+//       //   user?.to(userId)?.emit("output", data?.toString());
 //       // });
 
 //       // p.stdout.on("error", function (data) {
 //       //   console.log("Error", data.toString());
-//       //   user.emit("output", data?.toString());
+//       //   user?.to(userId)?.emit("output", data?.toString());
 //       // });
 
 //       const p = spawn(openTerminalCommand, {
@@ -126,12 +153,12 @@ app.use("/api/v1/", router);
 
 //       p.stdout.on("data", function (data) {
 //         console.log(data.toString());
-//         user.emit("output", data?.toString());
+//         user?.to(userId)?.emit("output", data?.toString());
 //       });
 
 //       p.stderr.on("data", function (data) {
 //         console.error("Error", data.toString());
-//         user.emit("output", data?.toString());
+//         user?.to(userId)?.emit("output", data?.toString());
 //       });
 
 //       p.on("close", function (code) {
@@ -174,76 +201,204 @@ app.use("/api/v1/", router);
 
 // ... (your other imports and setup)
 
+// app.post(
+//   "/api/v1/host",
+//   asyncHandler(async (req, res, next) => {
+//     // Stop nodemon temporarily
+//     nodemon.emit("quit");
+
+//     try {
+//       const GIT_REPOSITORY_URL = req?.body?.gitUrl;
+
+//       if (!GIT_REPOSITORY_URL) {
+//         return res.status(400).json({ error: "Git URL is required" });
+//       }
+
+//       console.log("Executing script.js");
+//       user?.to(userId)?.emit("output", "Executing script.js");
+
+//       const repositoryName = GIT_REPOSITORY_URL?.split("/")[4]?.split(".")[0];
+
+//       const outDirPath = path.join(__dirname, `output`);
+//       const nextDirPath = path.join(
+//         __dirname,
+//         `output/${repositoryName?.toString()}`
+//       );
+
+//       const gitCloneCommand = `start cmd /k cd "${outDirPath}" && git clone "${GIT_REPOSITORY_URL}" && cd "${nextDirPath}" && npm install && npm start`;
+//       // const npmInstallCommand = "npm install";
+//       // const npmStartCommand = "npm start";
+
+//       const commands = [
+//         { command: gitCloneCommand, cwd: outDirPath },
+//         // { command: npmInstallCommand, cwd: nextDirPath },
+//         // { command: npmStartCommand, cwd: nextDirPath },
+//       ];
+
+//       const executeCommand = (command, cwd) => {
+//         const childProcess = spawn(command, { shell: true, cwd });
+
+//         childProcess.stdout.on("data", (data) => {
+//           console.log(data.toString());
+//           user?.to(userId)?.emit("output", data.toString());
+//         });
+
+//         childProcess.stderr.on("data", (data) => {
+//           console.error(data.toString());
+//           user?.to(userId)?.emit("output", data.toString());
+//         });
+
+//         childProcess.on("close", (code) => {
+//           console.log(`Child process exited with code ${code}`);
+//         });
+//       };
+
+//       // Execute commands in separate terminals
+//       for (const { command, cwd } of commands) {
+//         executeCommand(command, cwd);
+//       }
+
+//       // Continue with the rest of your code...
+//       console.log("Script execution successful");
+//       // execSync("nodemon ./app.js", { stdio: "inherit" }); // Modify with your main server file
+//       next();
+//       res.status(200).json({ message: "Script execution successful" });
+//     } catch (err) {
+//       console.error("Error in script execution:", err.message);
+//       res.status(500).json({ error: "Script execution failed" });
+//     }
+//   })
+// );
+
+app.get(
+  "/api/v1/",
+  asyncHandler(async (req, res, next) => {
+    try {
+      console.log(userId);
+      // user.join(userId);
+      const distFolderPath = path.join(__dirname, "output");
+      const distFolderContents = fs.readdirSync(distFolderPath, {
+        recursive: true,
+      });
+
+      for (const file of distFolderContents) {
+        const filePath = path.join(distFolderPath, file);
+
+        if (fs.lstatSync(filePath).isDirectory()) {
+          const packageJsonPath = path.join(filePath, "package.json");
+
+          if (fs.existsSync(packageJsonPath)) {
+            const packageJsonContent = fs.readFileSync(
+              packageJsonPath,
+              "utf-8"
+            );
+            const packageJson = JSON.parse(packageJsonContent);
+
+            // Check if "start" or "dev" script exists
+            if (
+              packageJson.scripts &&
+              (packageJson.scripts.start || packageJson.scripts.dev)
+            ) {
+              // Add 'cd' to change the working directory
+              if (packageJson.scripts.start || packageJson.scripts.dev) {
+                console.log(
+                  `Start Script: ${
+                    packageJson.scripts.start || packageJson.scripts.dev
+                  }`
+                );
+                const bashCommand = `cd ${filePath} && git pull && npm i && ${
+                  packageJson.scripts.start || packageJson.scripts.dev
+                }`;
+                const childProcess = spawn(bashCommand, {
+                  cwd: __dirname,
+                  shell: true,
+                });
+
+                childProcess.stdout.on("data", (data) => {
+                  console.log(data.toString());
+                  user?.to(userId)?.emit("output", data.toString());
+                });
+
+                childProcess.stderr.on("data", (data) => {
+                  console.error(data.toString());
+                  user?.to(userId)?.emit("output", data.toString());
+                });
+              }
+            }
+          }
+        }
+      }
+
+      next();
+      return res.status(400).json({ error: "Git URL is required" });
+    } catch (error) {
+      console.error("Error in script execution:", error.message);
+      return res.status(500).json({ error: "Script execution failed" });
+    }
+  })
+);
+
 app.post(
   "/api/v1/host",
   asyncHandler(async (req, res, next) => {
-    // Stop nodemon temporarily
     nodemon.emit("quit");
 
     try {
+      console.log(userId);
+      // user.join(userId);
       const GIT_REPOSITORY_URL = req?.body?.gitUrl;
 
       if (!GIT_REPOSITORY_URL) {
         return res.status(400).json({ error: "Git URL is required" });
       }
 
-      console.log("Executing script.js");
+      console.log(userId);
+      console.log("Executing script.sh");
+      user?.to(userId)?.emit("output", "Executing script.sh");
 
       const repositoryName = GIT_REPOSITORY_URL?.split("/")[4]?.split(".")[0];
 
-      const outDirPath = path.join(__dirname, `output`);
+      const outDirPath = path.join(__dirname, "output");
       const nextDirPath = path.join(
         __dirname,
-        `output/${repositoryName?.toString()}`
+        "output",
+        repositoryName?.toString()
       );
 
-      const startNewTerminalCommand = `cd "${outDirPath}" && git clone "${GIT_REPOSITORY_URL}" && cd "${nextDirPath}" && npm install && npm start`;
+      const scriptPath = path.join(__dirname, "myscript.sh");
 
-      // const openTerminalCommand = `start cmd /k "${startNewTerminalCommand}"`;
-      const openTerminalCommand = `start cmd /k "${startNewTerminalCommand}"`;
+      // Properly handle paths with spaces
+      const bashCommand = `bash "${scriptPath}" "${GIT_REPOSITORY_URL}" "${repositoryName}"`;
 
-      const p = exec(
-        openTerminalCommand,
-        { cwd: outDirPath, shell: true },
-        (error, stdout, stderr) => {
-          if (error) {
-            console.error(`Error: ${error.message}`);
-            return;
-          }
-          console.log(stdout);
-        }
-      );
+      const childProcess = spawn(bashCommand, { cwd: __dirname, shell: true });
 
-      p.stdout.on("data", function (data) {
+      childProcess.stdout.on("data", (data) => {
         console.log(data.toString());
-        user.emit("output", data?.toString());
+        user?.to(userId)?.emit("output", data.toString());
       });
 
-      p.stdout.on("data", function (data) {
-        console.error("Error", data.toString());
-        user.emit("output", data?.toString());
+      childProcess.stderr.on("data", (data) => {
+        console.error(data.toString());
+        user?.to(userId)?.emit("output", data.toString());
       });
 
-      p.on("close", function (code) {
-        user.emit("output", code?.toString());
-        console.log("Script execution successful");
-
-        // Restart nodemon after script execution
-        nodemon({
-          script: "./app.js", // Modify with your main server file
-          ignore: ["output/*"], // Ignore the directory where scripts are executed
-        });
-
+      childProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log("Script execution successful");
+          user?.to(userId)?.emit("output", "Script execution successful");
+        } else {
+          console.error("Script execution failed with code:", code);
+          user
+            ?.to(userId)
+            ?.emit("output", `Script execution failed with code: ${code}`);
+          return res.status(500).json({ error: "Script execution failed" });
+        }
         next();
-      });
-
-      p.on("error", function (err) {
-        console.error("Error in script execution:", err.message);
-        res.status(500).json({ error: "Script execution failed" });
+        return res.status(200).json({ message: "Script execution successful" });
       });
     } catch (err) {
       console.error("Error in script execution:", err.message);
-      res.status(500).json({ error: "Script execution failed" });
+      return res.status(500).json({ error: "Script execution failed" });
     }
   })
 );

@@ -1,6 +1,6 @@
 # local file storage dir
 uploads/
-
+output
 # Logs
 logs
 *.log
